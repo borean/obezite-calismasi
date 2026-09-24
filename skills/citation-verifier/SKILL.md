@@ -5,7 +5,7 @@ allowed-tools: [Read, Bash, Grep, Glob, Write, WebFetch, WebSearch]
 license: MIT License
 metadata:
     skill-author: Bora Ulukapı
-    version: "1.2.0"
+    version: "1.3.0"
 ---
 
 # Citation Verifier
@@ -68,21 +68,25 @@ For each citation with a DOI, check that the DOI is registered:
 python3 SKILL_DIR/scripts/lookup.py doi "DOI_HERE"
 ```
 
-It asks the doi.org handle API (`https://doi.org/api/handles/DOI`) and never contacts the publisher, because publishers such as Wiley, NEJM and MDPI answer automated requests with HTTP 403, which makes a real DOI look broken when its redirect is followed. A `https://doi.org/` or `doi:` prefix is removed first. It prints exactly one word:
+It asks the doi.org handle API (`https://doi.org/api/handles/DOI`) and never contacts the publisher, because publishers such as Wiley, NEJM and MDPI answer automated requests with HTTP 403, which makes a real DOI look broken when its redirect is followed. A `https://doi.org/` or `doi:` prefix is removed first. It prints exactly one word, the DOI_STATUS of the Existence verdict (Step 3); a citation without a DOI has DOI_STATUS `NONE`:
 
 - `RESOLVES` = the DOI is registered: continue to 2b
-- `NOT_FOUND` = the DOI is not registered = **FABRICATED**
-- `UNVERIFIABLE` = network error or timeout (the reason is on stderr): retry once, then mark the DOI UNVERIFIABLE
+- `NOT_FOUND` = the DOI is not registered. A real paper can carry a wrong DOI, so this alone does not decide whether the paper exists: skip 2b; the title searches (2c, 2d) and the Existence verdict decide
+- `UNVERIFIABLE` = network error or timeout (the reason is on stderr): retry once; if it stays UNVERIFIABLE, continue to 2b, where a Crossref record can still confirm the DOI
 
 #### 2b. Crossref Metadata Verification
 
-For each citation with a DOI that resolved:
+For each citation whose DOI 2a reported as `RESOLVES` or `UNVERIFIABLE`; for `NOT_FOUND` and for a citation without a DOI, CROSSREF_STATUS is `SKIPPED`:
 
 ```bash
-curl -s "https://api.crossref.org/works/DOI_HERE" \
-  -H "User-Agent: CitationVerifier/1.0 (mailto:bora@example.com)" \
-  --max-time 15
+python3 SKILL_DIR/scripts/lookup.py crossref "DOI_HERE"
 ```
+
+It asks the Crossref REST API (`https://api.crossref.org/works/DOI`). The first line it prints is CROSSREF_STATUS for the Existence verdict (Step 3):
+
+- `FOUND` = Crossref has a record for the DOI; the API response follows on the second line as JSON, without the record's long `reference` list. For a DOI that 2a reported as `UNVERIFIABLE`, this record confirms that the DOI is registered
+- `NOT_FOUND` = Crossref has no record (HTTP 404). This does not show that the DOI is unregistered: other agencies, such as DataCite and mEDRA, register DOIs that Crossref does not know. Only 2a can show that
+- `UNVERIFIABLE` = network error, timeout, rate limit or any other answer (the reason is on stderr): retry once, as in Rate Limiting
 
 Parse the JSON response. Extract and compare:
 - `message.title[0]` vs the cited title (fuzzy match — allow minor differences in capitalization, punctuation)
@@ -140,7 +144,7 @@ curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=pubmed&i
 
 #### 2d. OpenAlex Cross-Validation
 
-Search OpenAlex by DOI or title:
+Search OpenAlex by DOI or title. Search by title as well unless 2a printed `RESOLVES` or 2b printed `FOUND` (so for `NOT_FOUND`, an unconfirmed `UNVERIFIABLE` and no DOI): a paper cited with a wrong DOI can only be found by its title.
 
 ```bash
 # By DOI (preferred):
@@ -148,12 +152,20 @@ curl -s "https://api.openalex.org/works/doi:DOI_HERE" \
   -H "User-Agent: CitationVerifier/1.0 (mailto:bora@example.com)" \
   --max-time 15
 
-# By title (fallback):
-ENCODED_TITLE=$(echo "TITLE_HERE" | python3 -c "import sys,urllib.parse; print(urllib.parse.quote(sys.stdin.read().strip()))")
+# By title (fallback; required unless 2a or 2b confirmed the DOI):
+ENCODED_TITLE=$(echo "TITLE_HERE" | python3 -c "import re,sys,urllib.parse; print(urllib.parse.quote(' '.join(w for w in re.findall(r'\w+', sys.stdin.read()) if len(w) > 1)))")
 curl -s "https://api.openalex.org/works?filter=title.search:${ENCODED_TITLE}" \
   -H "User-Agent: CitationVerifier/1.0 (mailto:bora@example.com)" \
   --max-time 15
 ```
+
+The title search sends only the title's words of two or more characters: OpenAlex rejects a comma or `?` in the query (HTTP 400), and a lone letter, such as the `s` left from `'s`, makes it find nothing. It finds only titles that contain every word sent.
+
+Set OPENALEX_STATUS for the Existence verdict (Step 3):
+- `FOUND` = the DOI search returns a work (a JSON object with an `id`), or a title-search result (`results[*].display_name`) matches the cited title by 2b's title heuristic: MATCH_RATIO ≥ 0.70 (`TITLE_OK` or `TITLE_MISMATCH_WARNING`)
+- `NOT_FOUND` = the title search ran and no result matches; the DOI search, if run, found nothing (HTTP 404: an HTML page instead of JSON)
+- `UNVERIFIABLE` = a search failed (no output, i.e. a timeout or no connection, or a JSON `error`) and nothing was found: retry once, as in Rate Limiting
+- `SKIPPED` = no title search was done
 
 Use OpenAlex to:
 - Confirm the paper exists in a second independent database
@@ -166,7 +178,8 @@ For each citation, evaluate:
 
 | Flag | Condition | Severity |
 |------|-----------|----------|
-| `FABRICATED` | DOI returns 404 AND no PubMed match AND no OpenAlex match | CRITICAL |
+| `FABRICATED` | DOI not registered (2a NOT_FOUND) AND no title match in PubMed AND no title match in OpenAlex | CRITICAL |
+| `DOI_NOT_REGISTERED` | DOI not registered (2a NOT_FOUND), but PubMed or OpenAlex finds the paper by its title: the paper is real, the DOI is wrong | HIGH |
 | `WRONG_DOI` | DOI resolves but title similarity < 70% | HIGH |
 | `FABRICATED_AUTHOR` | No cited authors appear in the real paper's author list | HIGH |
 | `WRONG_YEAR` | Year differs by > 1 from real publication date | MEDIUM |
@@ -174,7 +187,29 @@ For each citation, evaluate:
 | `RETRACTED` | Paper marked as retracted in Crossref or OpenAlex | CRITICAL |
 | `SUSPICIOUS_PATTERN` | DOI has suspiciously round numbers (e.g., `10.1000/1000`) or sequential DOIs across entries | LOW |
 | `NO_DOI` | No DOI provided — cannot fully verify | LOW |
-| `NOT_INDEXED` | Not found in any database (may be too new, grey literature, or fabricated) | MEDIUM |
+| `NOT_INDEXED` | No DOI and no match in any database (may be too new, grey literature, or fabricated) | MEDIUM |
+| `UNVERIFIABLE` | Nothing found the paper, but a lookup failed (network error, timeout, rate limit) or the OpenAlex title search was not done: re-run it; never FABRICATED | MEDIUM |
+
+**Existence verdict:** whether the paper exists is decided by one command from the statuses of Step 2, never by one lookup alone, so that `FABRICATED`, `DOI_NOT_REGISTERED`, `UNVERIFIABLE` and `NOT_INDEXED` always follow the table:
+
+```bash
+python3 SKILL_DIR/scripts/lookup.py existence --doi DOI_STATUS --crossref CROSSREF_STATUS --pubmed PUBMED_STATUS --openalex OPENALEX_STATUS
+```
+
+- DOI_STATUS: the word 2a printed (`RESOLVES`, `NOT_FOUND`, `UNVERIFIABLE`), or `NONE` for a citation without a DOI
+- CROSSREF_STATUS: the first line 2b printed (`FOUND`, `NOT_FOUND`, `UNVERIFIABLE`), or `SKIPPED` when 2b did not run
+- PUBMED_STATUS: the `status` 2c printed (`FOUND`, `NOT_IN_PUBMED`, `UNVERIFIABLE`), or `SKIPPED` when PubMed was not searched (not a biomedical paper)
+- OPENALEX_STATUS: as 2d sets it (`FOUND`, `NOT_FOUND`, `UNVERIFIABLE`, `SKIPPED`)
+
+It prints one word, from the first rule that applies:
+
+1. DOI `RESOLVES`, or Crossref `FOUND` → `EXISTS`
+2. PubMed or OpenAlex `FOUND` (a title match) → `DOI_NOT_REGISTERED` if the DOI is `NOT_FOUND`, otherwise `EXISTS`
+3. DOI, PubMed or OpenAlex `UNVERIFIABLE`, or OpenAlex `SKIPPED` (no title search) → `UNVERIFIABLE`
+4. DOI `NOT_FOUND` → `FABRICATED`
+5. No DOI → `NOT_INDEXED`
+
+`EXISTS` is not a flag: the paper is real, and the other rows of the table still apply. Any other word is the citation's flag; do not set these four flags any other way. A failed lookup never yields `FABRICATED`: re-run it (Rate Limiting), then run the command again.
 
 **Suspicious DOI pattern detection:**
 
@@ -419,7 +454,7 @@ Claims checked: [M] (rows in citation-claims.csv)
 CRITICAL FAILURES
 ═════════════════
 [ref_key] Author et al., Year, "Title..."
-  DOI: 10.xxxx/yyyy → 404 NOT FOUND
+  DOI: 10.xxxx/yyyy → NOT_FOUND (not registered)
   PubMed: No match for title + author
   OpenAlex: No match
   Verdict: LIKELY FABRICATED
@@ -468,11 +503,13 @@ TRUST SCORE: [n]/[total] citations verified ([%])
 - Each citation starts at 100 points
 - FABRICATED / RETRACTED: 0 points (critical failure)
 - WRONG_DOI: 20 points
+- DOI_NOT_REGISTERED: 20 points (the paper is real, its DOI is wrong)
 - FABRICATED_AUTHOR: 10 points
 - WRONG_YEAR: 70 points
 - WRONG_JOURNAL: 50 points
 - SUSPICIOUS_PATTERN: 80 points
-- NOT_INDEXED (no database match but no DOI failure): 60 points
+- NOT_INDEXED (no DOI and no match in any database): 60 points
+- UNVERIFIABLE (a lookup failed or the title search was not done): 60 points
 - NO_DOI: 50 points (cannot fully verify)
 - All checks passed: 100 points
 
@@ -498,12 +535,13 @@ curl -s "https://api.crossref.org/works/$DOI" ...
 - **Book chapters and conference papers** may not have DOIs. Mark these as `NO_DOI` rather than `FABRICATED`.
 - **Preprints** (bioRxiv, medRxiv, arXiv) have DOIs but may not be in PubMed. They should be verifiable via Crossref and OpenAlex.
 - **Claims are checked against the full text.** Each verdict rests on the cited paper's PDF, with a page and a verbatim quote anyone can check. Abstract-only checks are labeled NO_FULLTEXT and are heuristic. Never auto-delete a citation, whatever its verdict: a human reviews every row that is not SUPPORTED.
-- **Grey literature** (reports, guidelines, theses) may not be indexed anywhere. Flag as `UNVERIFIABLE` rather than `FABRICATED`.
+- **Grey literature** (reports, guidelines, theses) often has no DOI and may not be indexed anywhere. It is then `NOT_INDEXED`, not `FABRICATED`; `UNVERIFIABLE` is for a lookup that failed.
 - **Crossref is the most reliable** single source for DOI verification. If Crossref confirms the DOI, title, and authors, the citation is almost certainly real.
 - **AI-generated bibliographies** tend to have specific patterns: plausible-sounding but nonexistent DOIs, real author names paired with fabricated titles, and correct journal names with wrong volumes/pages. This skill is specifically designed to catch these patterns.
 
 ## Changelog
 
+- **1.3.0**: One existence verdict: `lookup.py existence` turns the statuses of 2a–2d into one word (`EXISTS`, `DOI_NOT_REGISTERED`, `FABRICATED`, `UNVERIFIABLE` or `NOT_INDEXED`), and the Step 3 table is the only definition. `FABRICATED` needs an unregistered DOI and no title match in PubMed or OpenAlex; the new `DOI_NOT_REGISTERED` is a real paper, found by its title, cited with a wrong DOI; the new `UNVERIFIABLE` is a failed lookup or a missing title search and never becomes `FABRICATED`. 2a no longer gives a verdict. Crossref (2b, now through `lookup.py crossref`) also checks a DOI whose doi.org check was `UNVERIFIABLE`. 2d says how to set OPENALEX_STATUS and sends only the title's words. Grey literature is `NOT_INDEXED`. Why: 2a called every unregistered DOI fabricated while the table also required no PubMed and no OpenAlex match, so a real paper cited with a wrong DOI was called fabricated and no flag described that case; the notes used `UNVERIFIABLE`, which the table did not define; a DOI whose doi.org check failed never reached Crossref, which could have confirmed it; OpenAlex rejects a title search that contains a comma or `?` (HTTP 400).
 - **1.2.0**: `.bib` files are parsed by `scripts/bib.py` (braces counted as in BibTeX, `"..."` and bare values, LaTeX accents and special letters decoded to Unicode, protective braces dropped). The DOI check asks the doi.org handle API and never the publisher, and PubMed is searched through E-utilities with the whole `TITLE[Title] AND SURNAME[Author]` term URL-encoded (both in `scripts/lookup.py`). The suspicious-DOI check reads `DOI_LIST_JSON` from the environment, and Step 3 shows how to build it from Step 1's output. Step 0 no longer requires TodoWrite. Why: the regex parser cut `{\c{S}}{\i}klar` to `{\c{S`, `{ROHHAD}` to `{ROHHAD` and skipped an entry closed on the line of its last value; Wiley, NEJM and MDPI answer automated requests with HTTP 403, so real DOIs looked broken; curl read `[Title]` as a URL glob and sent nothing; the single-quoted `'$DOI_LIST_JSON'` never expanded; not every environment has TodoWrite.
 - **1.1.0**: Step 4 checks each cited claim against the full-text PDF in the project's source folder instead of the abstract: claim list from every cite variant, legal open-access retrieval, identity check, verdict codes, numbers and population rules, and a verified PDF page + verbatim quote for every supporting verdict (`scripts/fulltext.py`). Step 5 adds the claim–source table and `citation-claims.csv`. Why: an abstract-level check cannot show where a paper supports a claim, and misses wrong numbers, wrong populations, secondary citations and wrong PDFs.
 - **1.0.0**: Initial version.
