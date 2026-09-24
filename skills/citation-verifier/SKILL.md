@@ -1,11 +1,11 @@
 ---
 name: citation-verifier
 description: "Verifies all citations in a .bib file or LaTeX manuscript against PubMed, Crossref, and OpenAlex, and checks every cited claim against the full-text PDFs in the project folder (PDF page + verbatim quote). Flags fabricated DOIs, wrong author/year combinations, retracted papers, and unsupported claims. Use whenever the user wants to verify references, says 'check citations', or before submission to ensure citation integrity."
-allowed-tools: [Read, Bash, Grep, Glob, Write, WebFetch, WebSearch, TodoWrite]
+allowed-tools: [Read, Bash, Grep, Glob, Write, WebFetch, WebSearch]
 license: MIT License
 metadata:
     skill-author: Bora Ulukapı
-    version: "1.1.0"
+    version: "1.2.0"
 ---
 
 # Citation Verifier
@@ -28,9 +28,9 @@ The user provides one or more of:
 
 ## Procedure
 
-### Step 0: Set Up a Todo List
+### Step 0: Set Up a Checklist
 
-Create a TodoWrite checklist with tasks:
+Keep a checklist of these tasks: in the environment's task-list tool if it has one, otherwise in your reply, ticking each task off as it is done.
 1. Extract citations from input files
 2. Verify each citation against databases (DOI, Crossref, PubMed, OpenAlex)
 3. Detect red flags (fabricated DOIs, wrong metadata, retractions, suspicious patterns)
@@ -41,38 +41,13 @@ Create a TodoWrite checklist with tasks:
 
 **From `.bib` files:**
 
-Use `Read` to load the `.bib` file. Parse each `@article{...}`, `@book{...}`, `@inproceedings{...}`, etc. For each entry, extract:
-- `citekey` (the label, e.g., `smith2023thyroid`)
-- `author`
-- `title`
-- `year`
-- `journal` or `booktitle`
-- `doi`
-- `pmid` (if present)
-- `volume`, `pages` (if present)
-
-Use a Bash script with `awk` or `python3` to parse the `.bib` file into a structured format (one JSON object per entry):
+`scripts/bib.py` in this skill's folder parses the `.bib` file into a JSON list, one object per entry: `citekey` (the label, e.g. `smith2023thyroid`), `type` (`article`, `book`, ...) and every field under its lower-case name. The later steps use `author`, `title`, `year`, `journal` or `booktitle`, `doi`, `pmid`, `volume` and `pages`. `SKILL_DIR` here and below is the folder this SKILL.md was loaded from, e.g. `~/.claude/skills/citation-verifier`.
 
 ```bash
-python3 -c "
-import re, json, sys
-
-with open(sys.argv[1], 'r') as f:
-    content = f.read()
-
-entries = []
-# Match bib entries
-for match in re.finditer(r'@(\w+)\{([^,]+),\s*(.*?)\n\}', content, re.DOTALL):
-    entry_type, citekey, body = match.groups()
-    entry = {'type': entry_type, 'citekey': citekey.strip()}
-    for field_match in re.finditer(r'(\w+)\s*=\s*\{(.+?)\}', body, re.DOTALL):
-        key, value = field_match.groups()
-        entry[key.lower().strip()] = ' '.join(value.split())
-    entries.append(entry)
-
-print(json.dumps(entries, indent=2))
-" "$BIB_FILE"
+python3 SKILL_DIR/scripts/bib.py "$BIB_FILE"
 ```
+
+It counts braces as BibTeX does (a value may contain braces; an entry may close on the line of its last value), reads `{...}`, `"..."` and bare values (numbers, `@string` macros), decodes LaTeX accents and special letters to Unicode (`{\c{S}}{\i}klar` → `Şıklar`, `\.{I}` → `İ`, `Ramo{\u{g}}lu` → `Ramoğlu`) and drops protective braces (`{ROHHAD}` → `ROHHAD`). Use these decoded values in every later step. The entry count goes to stderr, with a `WARNING` for every entry that cannot be parsed (its line number; the entry is left out of the JSON: fix it, or verify that reference by hand), every duplicate citekey and every repeated field. Save the output as `citations.json` (`> citations.json`); Step 3 reads it.
 
 **From `.tex` files with `\bibitem`:**
 
@@ -87,17 +62,17 @@ Process citations **one at a time** with a **1-second delay** between API calls 
 
 #### 2a. DOI Resolution Check
 
-For each citation with a DOI:
+For each citation with a DOI, check that the DOI is registered:
 
 ```bash
-# Check if DOI resolves (expect 200, not 404)
-HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -L "https://doi.org/DOI_HERE" --max-time 10)
+python3 SKILL_DIR/scripts/lookup.py doi "DOI_HERE"
 ```
 
-- `200` = DOI resolves (proceed to metadata checks)
-- `404` = DOI does not exist = **FABRICATED**
-- `301/302` that eventually leads to a paper page = OK
-- Network error or timeout = mark as UNVERIFIABLE, retry once
+It asks the doi.org handle API (`https://doi.org/api/handles/DOI`) and never contacts the publisher, because publishers such as Wiley, NEJM and MDPI answer automated requests with HTTP 403, which makes a real DOI look broken when its redirect is followed. A `https://doi.org/` or `doi:` prefix is removed first. It prints exactly one word:
+
+- `RESOLVES` = the DOI is registered: continue to 2b
+- `NOT_FOUND` = the DOI is not registered = **FABRICATED**
+- `UNVERIFIABLE` = network error or timeout (the reason is on stderr): retry once, then mark the DOI UNVERIFIABLE
 
 #### 2b. Crossref Metadata Verification
 
@@ -144,21 +119,17 @@ else:
 
 #### 2c. PubMed Verification
 
-For biomedical citations, search PubMed by title and first author:
+For biomedical citations, search PubMed by title and first author through the official E-utilities API (`esearch.fcgi`):
 
 ```bash
-# URL-encode the title (simplified — replace spaces with +)
-ENCODED_TITLE=$(echo "TITLE_HERE" | sed 's/ /+/g')
-FIRST_AUTHOR_SURNAME="SURNAME_HERE"
-
-curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term=${ENCODED_TITLE}[Title]+AND+${FIRST_AUTHOR_SURNAME}[Author]&retmode=json" \
-  --max-time 15
+python3 SKILL_DIR/scripts/lookup.py pubmed --title "TITLE_HERE" --author "SURNAME_HERE"
 ```
 
-Parse the response:
-- If `esearchresult.count` > 0, the paper exists in PubMed. Record the PMID.
-- If `esearchresult.count` == 0, try a broader search with just the title.
-- If still 0 results, this does **not** automatically mean fabricated (not all papers are in PubMed), but note as "Not found in PubMed."
+The helper sends the term `TITLE[Title] AND SURNAME[Author]`, URL-encoded as a whole (titles contain `:` and `?`, surnames letters such as `ı` and `ş`); if that finds nothing, it searches the title alone. A title that contains `"`, `$` or a backtick is safer on stdin: `--title -`. It prints one JSON object: `status`, `search` (`title+author`, or `title` for the title-only search), `count`, `pmids` and the `term` it sent.
+- `FOUND` via `title+author`: the paper exists in PubMed. Record the PMID.
+- `FOUND` via `title`: a paper with this title is in PubMed, but not under this first author. Compare its authors (esummary below).
+- `NOT_IN_PUBMED`: this does **not** automatically mean fabricated (not all papers are in PubMed), but note as "Not found in PubMed."
+- `UNVERIFIABLE`: network error, timeout or rate limit (see `error`): retry once, as in Rate Limiting.
 
 If a PMID was found, optionally fetch the full record to cross-check metadata:
 
@@ -208,10 +179,12 @@ For each citation, evaluate:
 **Suspicious DOI pattern detection:**
 
 ```bash
-python3 -c "
-import re, json, sys
+python3 - <<'EOF'
+import json, os, re, sys
 
-dois = json.loads(sys.argv[1])  # list of DOIs from all citations
+dois = json.loads(os.environ.get("DOI_LIST_JSON") or "null")  # list of DOIs from all citations
+if not isinstance(dois, list):
+    sys.exit("DOI_LIST_JSON must hold a JSON list of DOIs (see below how to build it)")
 suspicious = []
 
 for i, doi in enumerate(dois):
@@ -237,7 +210,13 @@ for i in range(1, len(sorted_dois)):
 
 for doi, reason in suspicious:
     print(f'SUSPICIOUS: {doi} — {reason}')
-" '$DOI_LIST_JSON'
+EOF
+```
+
+The check reads the environment variable `DOI_LIST_JSON`: a JSON list of the DOIs of all entries. Build it from Step 1's output, `citations.json` (with `\bibitem` input, first save the entries you extracted in the same shape). Run this line in the same Bash call as the check, since environment variables do not carry over between calls:
+
+```bash
+export DOI_LIST_JSON="$(python3 -c 'import json; print(json.dumps([e["doi"] for e in json.load(open("citations.json")) if e.get("doi")]))')"
 ```
 
 ### Step 4: Claim Verification Against Full Text
@@ -525,5 +504,6 @@ curl -s "https://api.crossref.org/works/$DOI" ...
 
 ## Changelog
 
+- **1.2.0**: `.bib` files are parsed by `scripts/bib.py` (braces counted as in BibTeX, `"..."` and bare values, LaTeX accents and special letters decoded to Unicode, protective braces dropped). The DOI check asks the doi.org handle API and never the publisher, and PubMed is searched through E-utilities with the whole `TITLE[Title] AND SURNAME[Author]` term URL-encoded (both in `scripts/lookup.py`). The suspicious-DOI check reads `DOI_LIST_JSON` from the environment, and Step 3 shows how to build it from Step 1's output. Step 0 no longer requires TodoWrite. Why: the regex parser cut `{\c{S}}{\i}klar` to `{\c{S`, `{ROHHAD}` to `{ROHHAD` and skipped an entry closed on the line of its last value; Wiley, NEJM and MDPI answer automated requests with HTTP 403, so real DOIs looked broken; curl read `[Title]` as a URL glob and sent nothing; the single-quoted `'$DOI_LIST_JSON'` never expanded; not every environment has TodoWrite.
 - **1.1.0**: Step 4 checks each cited claim against the full-text PDF in the project's source folder instead of the abstract: claim list from every cite variant, legal open-access retrieval, identity check, verdict codes, numbers and population rules, and a verified PDF page + verbatim quote for every supporting verdict (`scripts/fulltext.py`). Step 5 adds the claim–source table and `citation-claims.csv`. Why: an abstract-level check cannot show where a paper supports a claim, and misses wrong numbers, wrong populations, secondary citations and wrong PDFs.
 - **1.0.0**: Initial version.
