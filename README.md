@@ -14,7 +14,7 @@ sentetik veri ve skill dosyaları.
 **Ajanla (Codex, Claude Code):** ajana şunu yazın:
 
 ```
-https://github.com/borean/obezite-calismasi reposunu klonla ve PROJE.md'yi oku.
+Bu linkteki klasörü indir ve PROJE.md'yi oku: https://github.com/borean/obezite-calismasi
 ```
 
 **Sohbette (ChatGPT, Claude):** yeşil **Code** düğmesi → **Download ZIP**. `PROJE.md`, ilgili
