@@ -9,3 +9,5 @@ description: Makale şekli çizilirken kullan.
 - Noktalar yarı saydam; üst üste koyulaşır.
 - Gri + tek vurgu (#0072B2); başlık bulgu.
 - Çıktı: vektör PDF ve 300 dpi TIFF.
+
+Kaynak: Knaflic, Storytelling with Data (2015).
