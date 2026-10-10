@@ -1,4 +1,4 @@
-# Kaynak denetimi alıştırması (Görev 5)
+# Kaynak denetimi alıştırması (Görev 6)
 
 Kahvaltı ve vücut ağırlığı üzerine altı atıflı cümle. Bazıları doğru, bazıları bilerek yanlış
 kuruldu. Eğitim örneğidir; klinik öneri değildir.
