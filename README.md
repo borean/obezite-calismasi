@@ -35,6 +35,7 @@ Codex'in giriş dosyası `AGENTS.md`, Claude Code'unki `CLAUDE.md`'dir. Bu kitte
 | `skills/sekil-stili/` | Dergi şekli kuralları ve beğenilen iki örnek şekil. |
 | `skills/citation-verifier/` | Kaynakçadaki DOI'leri ve atıflı iddiaları tam metne karşı denetler (MIT). |
 | `kaynak-denetimi/` | Görev 6: altı atıflı cümle, kaynakça ve açık lisanslı iki PDF. Ayrıntı içindeki README'de. |
+| `is-karti/` | İki denetim listesi: sayı makaleye girmeden önce (`a-sayi.txt`) ve makaleyi göndermeden önce (`b-gonderim.txt`). Ajana da verebilirsiniz. |
 
 Skill = know-how + örnek dosyalar. Kendi skill'inizi aynı biçimde yazabilirsiniz: bir `SKILL.md`
 (adı, ne zaman kullanılacağı, kuralları) ve yanında örnekler.

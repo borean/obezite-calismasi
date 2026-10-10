@@ -1,0 +1,8 @@
+Göndermeden önce
+[ ] Veri: her sayı son kodla üretildi, n her yerde aynı
+[ ] Şekil: dosyalar güncel, vektör ya da 300 dpi
+[ ] Metin: abartı ve şişkin dil denetlendi
+[ ] Kaynak: DOI açılıyor, künye tutuyor, geri çekilmemiş
+[ ] Kaynak: atıf yapılan cümle makalede gerçekten var
+[ ] Beyan: araç, tarih, görev ve denetim yazıldı
+[ ] Derginin yapay zekâ sayfası okundu
