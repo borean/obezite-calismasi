@@ -1,0 +1,3 @@
+# Proje yönergeleri
+
+@PROJE.md
