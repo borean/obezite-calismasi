@@ -8,6 +8,8 @@ description: Makale şekli çizilirken kullan.
 - n < 30 ise violin yok; noktaları göster.
 - Noktalar yarı saydam; üst üste koyulaşır.
 - Gri + tek vurgu (#0072B2); başlık bulgu.
+- Başlık ilişki dili; neden dili yok.
+- Karıştırıcı renk ya da panelde görünür.
 - Çıktı: vektör PDF ve 300 dpi TIFF.
 
 Kaynak: Knaflic, Storytelling with Data (2015).

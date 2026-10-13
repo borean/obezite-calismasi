@@ -3,6 +3,7 @@ Sayı makaleye girmeden önce
 [ ] Veri sözlüğü klasörde: birim, kod, eksik değer
 [ ] Analiz planı sonuca bakmadan yazıldı
 [ ] Grubu kuran değişken bulgu listesinde değil
-[ ] Puberte, yaş, cinsiyet hesaba katıldı
+[ ] Düzeltme değişkenleri (ör. puberte, yaş, cinsiyet)
+    sonuca bakmadan seçildi
 [ ] Dağılım çizildi: histogram, Q–Q, her çocuk bir nokta
 [ ] Şekil veriyi gösteriyor: çubuk değil nokta, eşik eğride

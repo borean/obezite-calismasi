@@ -1,0 +1,6 @@
+[Tool, version; developer] was used on [dates] to draft R code and
+to edit the English of the Discussion. [It saw only synthetic data
+with the same structure. / It saw anonymised data under ethics
+approval no. …] The authors ran every script, reproduced the key
+estimates and checked each cited claim against the full text of
+its source. The tool did not interpret the results.
