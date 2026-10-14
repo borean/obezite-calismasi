@@ -37,7 +37,7 @@ Codex'in giriş dosyası `AGENTS.md`, Claude Code'unki `CLAUDE.md`'dir. Bu kitte
 `veri/SOZLUK.md` ve `veri/poliklinik_ham.csv`'yi sohbete yükleyin; Görev 3'te ayrıca
 `skills/istatistik/SKILL.md`'yi (Görev 2'deki kuralınızla), Görev 4'te `skills/sekil-stili/SKILL.md`'yi.
 Görev 2'de kuralı `SKILL.md` kopyanıza Not Defteri ya da TextEdit ile kendiniz yazın. Görev 6 sohbette
-çalışmaz (ağ ve skill'in betikleri gerekir); onu ajanla yapın.
+çalışmaz (ağ ve skill'in script'leri gerekir); onu ajanla yapın.
 
 CSV'yi Excel'de açıp kaydetmeyin; dosyayı olduğu gibi verin.
 
