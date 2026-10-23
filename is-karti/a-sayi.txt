@@ -1,4 +1,4 @@
-Sayı makaleye girmeden önce
+Sayı makaleye yazılmadan önce
 [ ] Sayı koddan geldi, sohbetten değil
 [ ] Veri sözlüğü klasörde: birim, kod, eksik değer
 [ ] Analiz planı sonuca bakmadan yazıldı
