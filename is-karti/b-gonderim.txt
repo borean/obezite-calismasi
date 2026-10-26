@@ -4,5 +4,5 @@ Göndermeden önce
 [ ] Metin: abartı ve şişkin dil denetlendi
 [ ] Kaynak: DOI açılıyor, künye tutuyor, geri çekilmemiş
 [ ] Kaynak: tam metin iddiayı destekliyor (sayfa ve alıntı)
-[ ] Beyan: araç, tarih, görev ve denetim yazıldı
+[ ] Beyan: gerekiyorsa araç, tarih, görev ve denetim yazıldı
 [ ] Derginin yapay zekâ sayfası okundu

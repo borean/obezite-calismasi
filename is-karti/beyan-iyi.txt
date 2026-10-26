@@ -1,6 +1,7 @@
-[Tool, version; developer] was used on [dates] to draft R code and
-to edit the English of the Discussion. [It saw only synthetic data
-with the same structure. / It saw anonymised data under ethics
-approval no. …] The authors ran every script, reproduced the key
-estimates and checked each cited claim against the full text of
-its source. The tool did not interpret the results.
+Methods: [Tool, version; developer] drafted [R code] on [dates]; it saw
+only [synthetic/pseudonymised (ethics no. …)] data. The authors [ran every
+script and reproduced the key estimates]; the tool did not interpret them.
+Acknowledgment: [Tool, version; developer] [edited the English] of the
+[Discussion] on [dates]; the authors [checked each edit, verified each
+cited claim against its full-text source] and take full responsibility.
+Cover letter: the same tool, tasks, sections and checks, in one sentence.

@@ -10,6 +10,7 @@ description: Makale şekli çizilirken kullan.
 - Gri + tek vurgu (#0072B2); başlık bulgu.
 - Başlık ilişki dili; neden dili yok.
 - Karıştırıcı renk ya da panelde görünür.
-- Çıktı: vektör PDF ve 300 dpi TIFF.
+- Lejant yerine doğrudan etiket; gri tonlamalı kopyasını da kaydet.
+- Çıktı: vektör PDF, 300 dpi TIFF; dergi isterse açıklamada araç, sürüm.
 
-Kaynak: Knaflic, Storytelling with Data (2015).
+Kaynak: Knaflic, Storytelling with Data (2015); Jambor (2025).

@@ -52,8 +52,10 @@ Amaç: obez ve normal kilolu
 çocuklarda açlık insülinini
 karşılaştırmak.
 Okur: pediatri dergisinin hakemi.
-Önce yalnız veriyi tanı;
-test yapmadan dur.
+Önce yalnız veriyi tanı; test yapma;
+ham dosyaya dokunma. Her sorun için
+düzeltme öner; emin olmadıklarını
+ayrı yaz ve onayımı bekle.
 ```
 
 **Görev 2 · Skill'e kuralınızı yazın.**
