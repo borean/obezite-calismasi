@@ -12,13 +12,16 @@ sentetik veri ve skill dosyaları.
 ## Gelmeden önce
 
 İstasyondan önce Codex ya da Claude Code'u kurup giriş yapın; olmazsa ChatGPT ya da Claude sohbeti de olur.
+Codex ChatGPT masaüstü uygulamasında (menüden Codex; ücretsiz hesapta da açılabilir); Claude Code Pro veya üstü
+plan ya da Console hesabı ister (kuruluysa önce `claude update`). Telefon doğrulamasını önceden bitirin.
 Boş bir klasörde ajana şunu yazın:
 
 ```
 git, Python, pandas, scipy, statsmodels, matplotlib ve pypdf kurulu mu? Eksikse kur; bitince hazır de.
 ```
 
-Mac'te komut satırı araçlarını kurmak isterse kabul edin.
+Mac'te geliştirici araçları penceresi açılırsa Yükle'yi seçin.
+Windows'ta Git ya da Python yoksa ajana “winget ile kur” deyin.
 
 ## Nasıl başlanır
 
@@ -71,10 +74,10 @@ kaydet (git varsa):
 **Görev 3 · Analizi skill'le yaptırın.**
 
 ```
-İstatistik skill'ini kuralıyla
-uygula: obez ve normal kilolu
-çocuklarda açlık insülini için
-önce planı yaz, onayımı bekle;
+skills/istatistik/SKILL.md'yi oku
+ve kuralıyla uygula: obez ve normal
+kilolu çocuklarda açlık insülini
+için önce planı yaz, onayımı bekle;
 sonra testi gerekçesiyle seç.
 Her sayı koddan gelsin.
 ```
@@ -82,13 +85,13 @@ Her sayı koddan gelsin.
 **Görev 4 · Dergi şeklini çizdirin.**
 
 ```
-sekil-stili skill'ine göre açlık
-insülinini kilo grubu ve puberteye
-göre çiz: her çocuk bir nokta,
-prepubertal gri, pubertal vurgu
-rengi; panel harfi, her hücrede n.
-Başlık bulguyu ilişki diliyle
-söylesin.
+skills/sekil-stili/SKILL.md'ye göre
+açlık insülinini kilo grubu ve
+puberteye göre çiz: her çocuk bir
+nokta, prepubertal gri, pubertal
+vurgu rengi; panel harfi, her
+hücrede n. Başlık bulguyu ilişki
+diliyle söylesin.
 ```
 
 **Görev 5 · Bulgular paragrafını yazdırın.**
@@ -106,8 +109,8 @@ yaz; p'yi tek başına yazma.
 **Görev 6 · artı · Kaynakları denetletin.**
 
 ```
-citation-verifier skill'iyle
-kaynak-denetimi/makale.tex'teki
+skills/citation-verifier/SKILL.md'ye
+göre kaynak-denetimi/makale.tex'teki
 atıfları denetle. Destekleyen
 pasaj için PDF sayfası ve birebir
 alıntı ver; bulamazsan yaz.
@@ -117,9 +120,10 @@ alıntı ver; bulamazsan yaz.
 
 | Yol | Ne |
 |---|---|
-| `AGENTS.md` | Codex'in yönerge girişi; `PROJE.md`'yi okumaya yönlendirir. |
-| `CLAUDE.md` | Claude Code'un yönerge girişi; `@PROJE.md` ile proje bağlamını içeri alır. |
+| `AGENTS.md` | Codex'in yönerge girişi; `PROJE.md`'yi ve `DECISIONS.md`'yi okumaya yönlendirir. |
+| `CLAUDE.md` | Claude Code'un yönerge girişi; `@AGENTS.md` ile aynı yönergeleri içeri alır. |
 | `PROJE.md` | Projenin sorusu, verisi ve çalışma kuralları. |
+| `DECISIONS.md` | Onayladığınız analiz kararları, tarih ve gerekçesiyle; ajan çalışma başında okur, yalnız onaylananı ekler. |
 | `veri/poliklinik_ham.csv` | 270 çocuk, ham hâliyle. Değişkenler `veri/SOZLUK.md`'de. |
 | `skills/istatistik/` | Analiz kuralları ve test gerekçesinin beklenen biçimi. |
 | `skills/sekil-stili/` | Dergi şekli kuralları ve beğenilen iki örnek şekil. |
