@@ -128,8 +128,11 @@ alıntı ver; bulamazsan yaz.
 | `skills/istatistik/` | Analiz kuralları ve test gerekçesinin beklenen biçimi. |
 | `skills/sekil-stili/` | Dergi şekli kuralları ve beğenilen iki örnek şekil. |
 | `skills/citation-verifier/` | Kaynakçadaki DOI'leri ve atıflı iddiaları tam metne karşı denetler (MIT). |
+| `skills-tam/` | Kendi bilgisayarımda kullandığım tam skill'ler: şekil, akış şeması, kaynak denetimi, makale denetimi, sayı tutarlılığı (MIT). Görevlerde kullanılmaz; içindeki README'ye bakın. |
 | `kaynak-denetimi/` | Görev 6: altı atıflı cümle, kaynakça ve açık lisanslı iki PDF. Ayrıntı içindeki README'de. |
 | `is-karti/` | İki denetim listesi: sayı makaleye girmeden önce (`a-sayi.txt`) ve makaleyi göndermeden önce (`b-gonderim.txt`); bir de yapay zekâ kullanım beyanı örneği (`beyan-iyi.txt`). Ajana da verebilirsiniz. |
+| `is-karti/b-gonderim-ek.txt` | Gönderim listesine dört ek madde: hakemlerin en çok kaçırdığı hatalar (Ders 2'nin son karesi). |
+| `KENDI-VERINIZLE.md` | Kendi hasta verinizle çalışmanın üç yolu ve sahte tabloyla çalışmanın adımları. |
 
 Skill = know-how + örnek dosyalar. Kendi skill'inizi aynı biçimde yazabilirsiniz: bir `SKILL.md`
 (adı, ne zaman kullanılacağı, kuralları) ve yanında örnekler.

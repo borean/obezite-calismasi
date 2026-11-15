@@ -1,6 +1,7 @@
 Methods: [Tool, version; developer] drafted [R code] on [dates]; it saw
-only [synthetic/pseudonymised (ethics no. …)] data. The authors [ran every
-script and reproduced the key estimates]; the tool did not interpret them.
+only [synthetic rows and summary tables; no patient-level data]. The
+authors [ran every script and reproduced the key estimates]; the tool
+did not interpret them.
 Acknowledgment: [Tool, version; developer] [edited the English] of the
 [Discussion] on [dates]; the authors [checked each edit, verified each
 cited claim against its full-text source] and take full responsibility.
