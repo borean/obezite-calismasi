@@ -1,0 +1,5 @@
+Göndermeden önce: dört ek madde (hakemin en çok kaçırdıkları)
+[ ] Veri: özet, metin ve tablo aynı sayıyı, aynı yönü söylüyor
+[ ] Yöntem: örneklem hesabı ve etik kurul onayı yazılı
+[ ] Akış: taranan, alınan, analiz edilen n ve nedenleri yazılı
+[ ] Metin: sonuç cümlesi bulgunun ötesine geçmiyor
