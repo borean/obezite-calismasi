@@ -12,5 +12,6 @@ SENTETİK veridir, gerçek hasta verisi değildir. Değişkenler: `veri/SOZLUK.m
 **Çıktı:** Türkçe rapor (LaTeX). Derleyici yoksa .tex dosyasını yaz; derleyici kurma.
 Şekiller `skills/sekil-stili` kurallarına göre.
 
-**Kurallar:** `skills/` klasöründeki skill dosyalarına uy. Sohbette sayı yazma;
+**Kurallar:** görevin adını verdiği skill'e uy (`skills/<ad>/SKILL.md`); `skills/` klasöründeki öbür
+skill'leri yalnız gerektiğinde oku. Sohbette sayı yazma;
 her sayı çalıştırılmış koddan gelsin.

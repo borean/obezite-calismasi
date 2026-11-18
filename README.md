@@ -125,10 +125,11 @@ alıntı ver; bulamazsan yaz.
 | `PROJE.md` | Projenin sorusu, verisi ve çalışma kuralları. |
 | `DECISIONS.md` | Onayladığınız analiz kararları, tarih ve gerekçesiyle; ajan çalışma başında okur, yalnız onaylananı ekler. |
 | `veri/poliklinik_ham.csv` | 270 çocuk, ham hâliyle. Değişkenler `veri/SOZLUK.md`'de. |
-| `skills/istatistik/` | Analiz kuralları ve test gerekçesinin beklenen biçimi. |
-| `skills/sekil-stili/` | Dergi şekli kuralları ve beğenilen iki örnek şekil. |
-| `skills/citation-verifier/` | Kaynakçadaki DOI'leri ve atıflı iddiaları tam metne karşı denetler (MIT). |
-| `skills-tam/` | Kendi bilgisayarımda kullandığım tam skill'ler: şekil, akış şeması, kaynak denetimi, makale denetimi, sayı tutarlılığı (MIT). Görevlerde kullanılmaz; içindeki README'ye bakın. |
+| `skills/istatistik/` | Kursun istatistik skill'i: altı kural ve test gerekçesinin beklenen biçimi; ayrıntı için tam skill'lere ve K-Dense'e yönlendirir (Görev 2, 3). |
+| `skills/sekil-stili/` | Kursun şekil skill'i: on kural ve beğenilen örnek şekiller; tam hâli `skills/dataviz-principles/` (Görev 4). |
+| `skills/citation-verifier/` | Kaynakçadaki DOI'leri ve atıflı iddiaları tam metne karşı denetler; sürüm 1.4.1 (Görev 6). |
+| `skills/dataviz-principles/`, `figure-pipeline/`, `clinical-algorithm-figures/`, `manuscript-linter/`, `data-integrity-check/` | Günlük işte kullandığım öbür skill'ler, tam hâlleriyle: şekil ilkeleri, şekil denetimi, akış şeması, makale denetimi, sayı tutarlılığı. |
+| `skills/README.md` | Her skill'in ne yaptığı, nasıl kurulacağı ve kursta adı geçen başkalarının skill'leri (K-Dense, Kalaris Labs, avoid-ai-writing, figures4papers) için bağlantılar. Skill'ler MIT lisanslıdır. |
 | `kaynak-denetimi/` | Görev 6: altı atıflı cümle, kaynakça ve açık lisanslı iki PDF. Ayrıntı içindeki README'de. |
 | `is-karti/` | İki denetim listesi: sayı makaleye girmeden önce (`a-sayi.txt`) ve makaleyi göndermeden önce (`b-gonderim.txt`); bir de yapay zekâ kullanım beyanı örneği (`beyan-iyi.txt`). Ajana da verebilirsiniz. |
 | `is-karti/b-gonderim-ek.txt` | Gönderim listesine dört ek madde: hakemlerin en çok kaçırdığı hatalar (Ders 2'nin son karesi). |
@@ -137,4 +138,4 @@ alıntı ver; bulamazsan yaz.
 Skill = know-how + örnek dosyalar. Kendi skill'inizi aynı biçimde yazabilirsiniz: bir `SKILL.md`
 (adı, ne zaman kullanılacağı, kuralları) ve yanında örnekler.
 
-Dr. Hasan Bora Ulukapı · AYBÜ Yenimahalle EAH Çocuk Endokrinoloji Kliniği · ÇEDD Çocuk Endokrinolojisinde Yapay Zeka Çalışma Grubu (ÇEYAZ)
+Uzm. Dr. Hasan Bora Ulukapı · AYBÜ Yenimahalle EAH Çocuk Endokrinoloji Kliniği · ÇEDD Çocuk Endokrinolojisinde Yapay Zeka Çalışma Grubu (ÇEYAZ)

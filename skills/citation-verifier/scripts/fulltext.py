@@ -19,9 +19,19 @@ Text is extracted with `pdftotext` (poppler) when it is on PATH, otherwise with
       are searched.
 
   fulltext.py identify PDF --doi DOI --title TITLE
-      Prints "MATCH" (exit 0) if the DOI appears on the first two pages or the
-      title is >= 0.85 similar to text on the first page, else "NO_MATCH"
-      (exit 1). The evidence goes to stderr.
+      Is the PDF the cited paper? The DOI counts only on the first two pages
+      and before the reference list (a line that is just References,
+      Kaynaklar, Bibliography or Literature Cited, in any case, maybe
+      numbered), so a paper that cites this one is no evidence. The title
+      must be >= 0.85 similar to text on page 1, where + − ± < > ≤ ≥ count
+      ("HIV+" does not match "HIV−"). Prints one word:
+        MATCH     the DOI is there, and so is the title if one was given;
+                  or no DOI, but the title, and no other DOI on page 1  exit 0
+        NO_MATCH  neither the DOI nor the title                         exit 1
+        CONFLICT  the DOI but another title, or the title but another
+                  DOI on page 1, or a notice heading for an original     exit 3
+      Evidence from the reading-order and the -layout extraction counts. The
+      evidence goes to stderr.
 
 Exit status 2: the PDF could not be read or the arguments are unusable.
 """
@@ -33,6 +43,7 @@ import shutil
 import subprocess
 import sys
 import unicodedata
+import urllib.parse
 
 TITLE_THRESHOLD = 0.85
 DOI_PAGES = 2
@@ -242,21 +253,71 @@ def _doi_regex(doi):
     return re.compile(r"(?<![0-9])" + body + tail)
 
 
+TITLE_SYMBOLS = frozenset("+\u2212\u00b1<>\u2264\u2265")  # + − ± < > ≤ ≥: "HIV+" is not "HIV−"
+_SYMBOL_SPLIT = re.compile("([+\u2212\u00b1<>\u2264\u2265])")
+_HYPHEN_MINUS = re.compile(r"(?<=\w)-(?=[ \t]+\S)")  # "HIV- adolescents": a minus sign
+_MARKUP = re.compile(r"</?(?:i|b|u|em|strong|sub|sup|sc|scp|span|small|mml:[a-z]+|jats:[a-z-]+)\b[^<>]*>",
+                     re.I)  # Crossref-style title markup; its < > are not symbols
+REFERENCES_HEADING = re.compile(
+    r"^[^\S\n]*(?:(?:\d+(?:\.\d+)*\.?|[IVXLC]+\.)[^\S\n]*)?"
+    r"(?:references|kaynaklar|bibliography|literature[^\S\n]+cited)[^\S\n]*:?[^\S\n]*$",
+    re.I | re.M)
+ANY_DOI = re.compile(r"10\.\d{4,9}/\S+")
+NOTICE_HEADER = re.compile(
+    r"^\s*(?:(?:author|publisher|editorial)\s+)?"
+    r"(?:correction|corrigendum|erratum|retraction(?:\s+note)?|expression\s+of\s+concern)"
+    r"(?:\s+(?:to|of|for))?\s*(?::|$)", re.I | re.M)
+BODY_HEADING = re.compile(r"^\s*(?:abstract|introduction|background|methods|results)\s*:?\s*$", re.I | re.M)
+
+
+def notice_header(page):
+    """Find an explicit notice label in front matter, before the first body heading.
+
+    This is a conflict signal, not a classifier of every publisher layout.
+    An ordinary sentence containing 'correction' is not a notice label.
+    """
+    body = BODY_HEADING.search(page)
+    header = page[:body.start()] if body else page[:4000]
+    found = NOTICE_HEADER.search(header)
+    return found.group().strip() if found else ""
+
+
 def _plain_title(title):
-    t = re.sub(r"\\[A-Za-z]+\*?", " ", title)  # LaTeX commands: \emph, \textit ...
+    t = _MARKUP.sub("", title)                  # <i>, <sup>, <scp> ...
+    t = re.sub(r"\\[A-Za-z]+\*?", " ", t)       # LaTeX commands: \emph, \textit ...
     t = re.sub(r"\\.", " ", t)                  # escapes: \& \% \'
     return re.sub(r"[{}$]", "", t)
 
 
 def _words(s):
-    return re.sub(r"\W+", " ", canonical(s)).split()
+    """Canonical words, with + − ± < > ≤ ≥ as tokens of their own.
+
+    NFKC first, so superscript and full-width forms count (⁺ is +, ⁻ is −).
+    An ASCII hyphen right after a word and followed by a space is a minus
+    sign ("HIV- adolescents"); a hyphen inside a word is not ("HIV-infected").
+    """
+    s = _HYPHEN_MINUS.sub("\u2212", unicodedata.normalize("NFKC", s))
+    out = []
+    for k, part in enumerate(_SYMBOL_SPLIT.split(s)):
+        if k % 2:
+            out.append(part)  # a symbol
+        else:
+            out.extend(re.sub(r"\W+", " ", canonical(part)).split())
+    return out
 
 
 def title_similarity(title, page_text):
-    """Best difflib ratio between the title and any similar-length word window."""
+    """Best difflib ratio between the title and any similar-length word window.
+
+    A window that shows other + − ± < > ≤ ≥ symbols than the title (both have
+    some, and they differ) does not count, so "HIV+" never matches "HIV−",
+    however long the title. A symbol that only one side has (lost or garbled
+    in extraction) just lowers the ratio.
+    """
     tw, pw = _words(_plain_title(title)), _words(page_text)
     if not tw or not pw:
         return 0.0
+    tsym = [w for w in tw if w in TITLE_SYMBOLS]
     target, tset, n = " ".join(tw), set(tw), len(tw)
     prefix = [0]
     for w in pw:
@@ -269,6 +330,9 @@ def title_similarity(title, page_text):
             j = min(len(pw), i + size)
             if prefix[j] - prefix[i] < n / 2:  # shares too few title words
                 continue
+            wsym = [w for w in pw[i:j] if w in TITLE_SYMBOLS]
+            if tsym and wsym and wsym != tsym:  # other symbols: another title
+                continue
             sm.set_seq1(" ".join(pw[i:j]))
             if sm.real_quick_ratio() <= best or sm.quick_ratio() <= best:
                 continue
@@ -276,32 +340,130 @@ def title_similarity(title, page_text):
     return best
 
 
+def _before_references(pages):
+    """(texts, heading_page): the pages cut at the first references heading,
+    and the 1-based page it is on (None if there is none). The pages after
+    the heading are dropped."""
+    out = []
+    for idx, page in enumerate(pages):
+        m = REFERENCES_HEADING.search(page)
+        if m:
+            out.append(page[:m.start()])
+            return out, idx + 1
+        out.append(page)
+    return out, None
+
+
+def _doi_key(s):
+    """A DOI reduced for comparison: %-escapes decoded, no URL prefix, case,
+    hyphens and spaces ignored, trailing punctuation dropped."""
+    s = _chars(urllib.parse.unquote(s)).strip()
+    s = re.sub(r"^(?:https?://(?:dx\.)?doi\.org/|doi:)", "", s)
+    return re.sub(r"[\s-]+", "", s.rstrip(".,;:'\")]}>"))
+
+
+def _is_cited_doi(cand, key):
+    """Is DOI key `cand` the cited one, `key`, maybe cut at a line break or a
+    column gap, or run into the next word?"""
+    if cand.startswith(key):
+        rest = cand[len(key):]
+        return not rest or not (rest[0].isdigit() if key[-1].isdigit() else rest[0].isalnum())
+    return key.startswith(cand)
+
+
+def _other_dois(text, doi):
+    """The DOIs in text (in lower case) that are not the cited DOI."""
+    key = _doi_key(doi) if doi else ""
+    found = []
+    for m in ANY_DOI.finditer(_chars(text)):
+        raw = m.group().rstrip(".,;:'\")]}>")
+        cand = _doi_key(raw)
+        if not re.search(r"/.", cand) or (key and _is_cited_doi(cand, key)):
+            continue
+        if raw not in found:
+            found.append(raw)
+    return found
+
+
+def identify_pages(pages, doi, title, alt_pages=None, evidence=None):
+    """MATCH, NO_MATCH or CONFLICT: is the extracted text (one string per
+    page) the cited paper?
+
+    The DOI counts only on pages[:DOI_PAGES] before the first references
+    heading, so a paper that cites this one is no evidence; the title is
+    compared with page 1. Another DOI is one on page 1, before the
+    references, that is not the cited DOI (without a cited DOI there is
+    nothing for it to conflict with).
+      DOI found, and no title given or the title matches      MATCH
+      DOI found, the title does not match                     CONFLICT
+      DOI not found, the title matches, no other DOI          MATCH
+      DOI not found, the title matches, another DOI           CONFLICT
+      otherwise                                               NO_MATCH
+    alt_pages, another extraction of the same PDF (-layout), adds its
+    evidence: the DOI if either has it, the better title score, the other
+    DOIs of both. evidence, if a dict, receives what was found.
+    """
+    doi = (doi or "").strip()
+    doi = doi if _doi_key(doi) else ""
+    title = (title or "").strip()
+    has_title = bool(title and _words(_plain_title(title)))
+    doi_re = _doi_regex(doi) if doi else None
+    doi_page, refs_page, score, others, notice_labels = None, None, 0.0, [], []
+    for ext in [pages] if alt_pages is None else [pages, alt_pages]:
+        head, heading = _before_references(list(ext[:DOI_PAGES]))
+        refs_page = refs_page or heading
+        if doi_re and doi_page is None:
+            doi_page = next((i + 1 for i, text in enumerate(head) if doi_re.search(_chars(text))), None)
+        if has_title and ext:
+            score = max(score, title_similarity(title, ext[0]))
+        if ext:
+            label = notice_header(ext[0])
+            if label and label not in notice_labels:
+                notice_labels.append(label)
+        for d in _other_dois(head[0], doi) if head else []:
+            if d not in others:
+                others.append(d)
+    title_ok = has_title and score >= TITLE_THRESHOLD
+    if isinstance(evidence, dict):
+        evidence.update(doi_page=doi_page, references_page=refs_page,
+                        title_similarity=score if has_title else None,
+                        other_dois=others if doi else [], page1_dois=others,
+                        notice_labels=notice_labels)
+    # Notices routinely repeat the original title and DOI. They are not the
+    # original article, even when both strings match. A deliberately cited
+    # notice must carry its notice title; other DOI conflicts still apply.
+    if notice_labels and not notice_header(title):
+        return "CONFLICT"
+    if doi_page:
+        return "MATCH" if not has_title or title_ok else "CONFLICT"
+    if title_ok:
+        return "CONFLICT" if doi and others else "MATCH"
+    return "NO_MATCH"
+
+
 def cmd_identify(args):
     if not (args.doi or args.title):
         print("ERROR: give --doi and/or --title", file=sys.stderr)
         return 2
-    doi_re = _doi_regex(args.doi) if args.doi else None
-    doi_page, best = None, 0.0
-    for layout in (False, True):
-        pages = extract(args.pdf, layout, args.engine)
-        if doi_re and doi_page is None:
-            for idx, page in enumerate(pages[:DOI_PAGES]):
-                if doi_re.search(_chars(page)):
-                    doi_page = idx + 1
-                    break
-        if args.title and pages:
-            best = max(best, title_similarity(args.title, pages[0]))
-    evidence = []
+    ev = {}
+    verdict = identify_pages(extract(args.pdf, False, args.engine), args.doi, args.title,
+                             alt_pages=extract(args.pdf, True, args.engine), evidence=ev)
+    notes = []
     if args.doi:
-        evidence.append(f"doi: {'page ' + str(doi_page) if doi_page else 'not on pages 1-' + str(DOI_PAGES)}")
-    if args.title:
-        evidence.append(f"title similarity on page 1: {best:.2f} (threshold {TITLE_THRESHOLD})")
-    print("; ".join(evidence), file=sys.stderr)
-    if doi_page or best >= TITLE_THRESHOLD:
-        print("MATCH")
-        return 0
-    print("NO_MATCH")
-    return 1
+        notes.append(f"doi: page {ev['doi_page']}" if ev["doi_page"] else
+                     f"doi: not on pages 1-{DOI_PAGES} before the references")
+    if ev["references_page"]:
+        notes.append(f"references heading on page {ev['references_page']}")
+    if ev["title_similarity"] is not None:
+        notes.append(f"title similarity on page 1: {ev['title_similarity']:.2f} (threshold {TITLE_THRESHOLD})")
+    if ev["page1_dois"]:
+        label = "other DOI on page 1" if args.doi else "DOI on page 1"
+        notes.append(f"{label}: {', '.join(ev['page1_dois'])}")
+    if ev["notice_labels"]:
+        notes.append(f"notice label: {', '.join(ev['notice_labels'])}")
+    print("; ".join(notes), file=sys.stderr)
+    print(verdict)
+    return {"MATCH": 0, "NO_MATCH": 1, "CONFLICT": 3}[verdict]
 
 
 # ------------------------------------------------------------------- pages

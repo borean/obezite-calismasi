@@ -14,3 +14,12 @@ description: Makale şekli çizilirken kullan.
 - Çıktı: vektör PDF, 300 dpi TIFF; dergi isterse açıklamada araç, sürüm.
 
 Kaynak: Knaflic, Storytelling with Data (2015); Jambor (2025).
+
+## Ayrıntı gerektiğinde
+
+Bu on kural kursun şekil skill'idir; tam hâlleri ve denetimi şu skill'lerdedir:
+
+- İlkelerin tamamı ve denetim listesi (Tufte, Knaflic): `../dataviz-principles/SKILL.md`.
+- Çizimden sonra denetim (üst üste binen yazı, kesik etiket, boş panel, Türkçe karakter, çözünürlük): `../figure-pipeline/SKILL.md`.
+- Tanı ve tedavi akış şeması: `../clinical-algorithm-figures/SKILL.md`.
+- Başka bir stil (Ders 1'de karşılaştırdık): Chen Liu, figures4papers (CC BY-NC 4.0): <https://github.com/ChenLiu-1996/figures4papers>
